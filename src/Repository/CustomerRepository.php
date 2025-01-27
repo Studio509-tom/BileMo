@@ -28,8 +28,17 @@ class CustomerRepository extends ServiceEntityRepository
         ->getSingleColumnResult();
 
     }
-
-    public function isAccepted($id_user_admin , $id_user){
+    
+    /**
+     * isAccepted
+     *
+     * @param  mixed $id_user_admin
+     * @param  mixed $id_user
+     * @return mixed
+     */
+    public function isAccepted($id_user_admin , $id_user): mixed{
+        // return ['admin' => $id_user_admin , "user" => $id_user];
+        
         return $this->createQueryBuilder('c')
         ->select('c.id') // Récupérer l'ID de l'utilisateur
         ->where('c.customer = :customerId') // Filtrer par l'ID du Customer
@@ -37,7 +46,7 @@ class CustomerRepository extends ServiceEntityRepository
         ->setParameter('customerId', $id_user_admin) // ID du Customer
         ->setParameter('userId', $id_user) // ID du User
         ->getQuery()
-        ->getSingleScalarResult(); // Retourne un seul ID (ou null si aucun)
+        ->getOneOrNullResult(); // Retourne un seul ID (ou null si aucun)
     }
 //    /**
 //     * @return Customer[] Returns an array of Customer objects

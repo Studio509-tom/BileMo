@@ -33,7 +33,7 @@ final class ProductController extends AbstractController
         return new JsonResponse($jsonProducts, Response::HTTP_OK , [], true);
     }
 
-    #[Route('/api/product/{id}', name: 'product',methods:['GET'])]    
+    #[Route('/api/product/{id}', name: 'product_details',methods:['GET'])]    
     /**
      * getProduct
      *

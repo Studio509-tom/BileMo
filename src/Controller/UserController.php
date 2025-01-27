@@ -8,6 +8,7 @@ use App\Entity\User;
 use App\Repository\UserRepository;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 use Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface;
@@ -20,7 +21,16 @@ use JMS\Serializer\SerializerInterface;
 
 final class UserController extends AbstractController
 {
-    #[Route('/api/users', name: 'users', methods: ["GET"])]
+    #[Route('/api/users', name: 'users', methods: ["GET"])]    
+    /**
+     * getUserFromToken
+     *
+     * @param  TokenStorageInterface $tokenStorage
+     * @param  CustomerRepository $customerRepository
+     * @param  SerializerInterface $serializer
+     * @param  UserRepository $userRepository
+     * @return JsonResponse
+     */
     public function getUserFromToken(TokenStorageInterface $tokenStorage, CustomerRepository $customerRepository, SerializerInterface $serializer, UserRepository $userRepository)
     {
         $token = $tokenStorage->getToken();
@@ -40,19 +50,33 @@ final class UserController extends AbstractController
             return new JsonResponse($jsonList, Response::HTTP_OK, [], true);
         }
     }
-    #[Route('/api/user/{id}', name: 'user_details', methods: ["GET"])]
+    #[Route('/api/user/{id}', name: 'user_details', methods: ["GET"])]    
+    /**
+     * getUserDetails
+     *
+     * @param  User $user
+     * @param  TokenStorageInterface $tokenStorage
+     * @param  SerializerInterface $serializer
+     * @param  CustomerRepository $customerRepository
+     * @param  UserRepository $userRepository
+     * @return JsonResponse
+     */
     public function getUserDetails(User $user, TokenStorageInterface $tokenStorage, SerializerInterface $serializer, CustomerRepository $customerRepository, UserRepository $userRepository)
     {
         $token = $tokenStorage->getToken();
 
         // Vérifiez si le token et l'utilisateur existent
         if ($token && ($user_admin = $token->getUser()) && is_object($user_admin)) {
-            $verif_is_accept = $customerRepository->isAccepted($user_admin->getId(), $user->getId());
-            if (!is_null($verif_is_accept)) {
+            $is_authorized = $customerRepository->isAccepted($user_admin->getId(), $user->getId());
+
+            if (!is_null($is_authorized)) {
                 $user_new = $userRepository->find($user);
                 $context = SerializationContext::create()->setGroups(['user_read']);
                 $jsonList = $serializer->serialize($user_new, 'json', $context);
                 return new JsonResponse($jsonList, Response::HTTP_OK, [], true);
+            }else{
+                return new JsonResponse( "Vous n'êtes pas autorisé à voir cette utilisateur" ,Response::HTTP_BAD_REQUEST, [], true);
+
             }
         }
     }
