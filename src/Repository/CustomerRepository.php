@@ -37,8 +37,6 @@ class CustomerRepository extends ServiceEntityRepository
      * @return mixed
      */
     public function isAccepted($id_user_admin , $id_user): mixed{
-        // return ['admin' => $id_user_admin , "user" => $id_user];
-        
         return $this->createQueryBuilder('c')
         ->select('c.id') // Récupérer l'ID de l'utilisateur
         ->where('c.customer = :customerId') // Filtrer par l'ID du Customer
@@ -47,6 +45,21 @@ class CustomerRepository extends ServiceEntityRepository
         ->setParameter('userId', $id_user) // ID du User
         ->getQuery()
         ->getOneOrNullResult(); // Retourne un seul ID (ou null si aucun)
+    }
+    
+    /**
+     * deleteCustomerWithUserId
+     *
+     * @param  mixed $id_user
+     * @return mixed
+     */
+    public function deleteCustomerWithUserId($id_user): mixed{
+        return $this->createQueryBuilder('c')
+        ->delete()  // Utiliser la méthode delete()
+        ->where('c.user = :userId')
+        ->setParameter('userId', $id_user)
+        ->getQuery()
+        ->execute();  // Exécuter la suppression
     }
 //    /**
 //     * @return Customer[] Returns an array of Customer objects

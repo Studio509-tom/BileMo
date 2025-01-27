@@ -4,8 +4,10 @@ namespace App\Entity;
 
 use App\Repository\CustomerRepository;
 use Doctrine\ORM\Mapping as ORM;
+use ApiPlatform\Core\Annotation\ApiResource;
 #[ORM\Entity(repositoryClass: CustomerRepository::class)]
 #[ORM\Table(name: 'customer')]
+#[ApiResource()]
 class Customer
 {
     #[ORM\Id]
@@ -17,7 +19,7 @@ class Customer
     private ?User $customer = null;
 
     #[ORM\OneToOne(targetEntity: User::class, inversedBy: 'customer', cascade: ['persist', 'remove'])]
-    #[ORM\JoinColumn(nullable: false)]
+    #[ORM\JoinColumn(name:"user_id", referencedColumnName:"id", nullable:false)]
     private ?User $user = null;
     
     public function getId(): ?int

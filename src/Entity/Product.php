@@ -6,6 +6,9 @@ use App\Repository\ProductRepository;
 use Doctrine\ORM\Mapping as ORM;
 use JMS\Serializer\Annotation\Groups;
 use Symfony\Component\Validator\Constraints as Assert;
+use ApiPlatform\Core\Annotation\ApiResource;
+#[ApiResource()]
+
 #[ORM\Entity(repositoryClass: ProductRepository::class)]
 class Product
 {
