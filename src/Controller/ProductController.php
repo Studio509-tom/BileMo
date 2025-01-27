@@ -8,7 +8,9 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;
-use Symfony\Component\Serializer\SerializerInterface;
+use JMS\Serializer\Serializer;
+use JMS\Serializer\SerializationContext;
+use JMS\Serializer\SerializerInterface;
 use Symfony\Component\HttpFoundation\Response;
 use App\Entity\User;
 final class ProductController extends AbstractController
@@ -26,7 +28,8 @@ final class ProductController extends AbstractController
         // Récupération de tout les produits
         $products = $productRepository->findAll();
         // Retour JSON serializer
-        $jsonProducts = $serializer->serialize($products, 'json' , [ 'groups' => "getProducts"]);
+        $context = SerializationContext::create()->setGroups(['getProducts']);
+        $jsonProducts = $serializer->serialize($products, 'json' , $context);
         return new JsonResponse($jsonProducts, Response::HTTP_OK , [], true);
     }
 
@@ -41,7 +44,8 @@ final class ProductController extends AbstractController
     public function getProduct(Product $product,SerializerInterface $serializer): JsonResponse
     {
         // Retour du product
-        $jsonProduct = $serializer->serialize($product, 'json' , [ 'groups' => "getProducts"]);
+        $context = SerializationContext::create()->setGroups(['getProducts']);
+        $jsonProduct = $serializer->serialize($product, 'json' , $context);
 
         return new JsonResponse($jsonProduct, Response::HTTP_OK , [], true);
 

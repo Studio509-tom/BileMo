@@ -21,7 +21,7 @@ class AppFixtures extends Fixture
     }
     public function load(ObjectManager $manager  ): void
     {
-        $listCustomer = [];
+        $listAdmin =[];
         for ($i = 0; $i < 20 ; $i++){
             $product = new Product;
             $product->setName('Téléphone-' . $i);
@@ -34,10 +34,9 @@ class AppFixtures extends Fixture
             $user->setEmail("tata" . $i."@test.fr");
             $user->setPassword($this->userPasswordHasher->hashPassword($user, "password"));
             $user->setRoles(['ROLE_ADMIN']);
-            // $customer->setToken(['token' => $this->token->create($customer)]);
-
-            $listCustomer[] = $user;
+            $user->setToken($this->token->create($user));
             $manager->persist($user);
+            $listAdmin[] = $user;
         }
 
         for ($i = 0; $i < 20; $i++) {
@@ -45,8 +44,14 @@ class AppFixtures extends Fixture
             $user->setEmail("toto" . $i."@test.fr");
             $user->setPassword($this->userPasswordHasher->hashPassword($user, "password"));
             $user->setRoles(['ROLE_USER']);
+            $user->setToken($this->token->create($user));
             
             $manager->persist($user);
+
+            $customer = new Customer;
+            $customer->setCustomer($listAdmin[array_rand($listAdmin)]);
+            $customer->setUser($user);
+            $manager->persist($customer);
         }
         
         $manager->flush();

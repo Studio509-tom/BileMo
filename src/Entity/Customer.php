@@ -4,8 +4,8 @@ namespace App\Entity;
 
 use App\Repository\CustomerRepository;
 use Doctrine\ORM\Mapping as ORM;
-
 #[ORM\Entity(repositoryClass: CustomerRepository::class)]
+#[ORM\Table(name: 'customer')]
 class Customer
 {
     #[ORM\Id]
@@ -16,9 +16,10 @@ class Customer
     #[ORM\ManyToOne(inversedBy: 'customers')]
     private ?User $customer = null;
 
-    #[ORM\OneToOne(cascade: ['persist', 'remove'])]
+    #[ORM\OneToOne(targetEntity: User::class, inversedBy: 'customer', cascade: ['persist', 'remove'])]
+    #[ORM\JoinColumn(nullable: false)]
     private ?User $user = null;
-
+    
     public function getId(): ?int
     {
         return $this->id;
@@ -47,4 +48,7 @@ class Customer
 
         return $this;
     }
+    
+    
+  
 }
