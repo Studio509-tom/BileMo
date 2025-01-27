@@ -12,10 +12,12 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 use Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface;
-// use Symfony\Component\Serializer\SerializerInterface;
 use Symfony\Component\HttpFoundation\Response;
 use Lexik\Bundle\JWTAuthenticationBundle\Security\Authenticator\Token\JWTPostAuthenticationToken;
 use JMS\Serializer\Serializer;
+use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
+use Doctrine\ORM\EntityManagerInterface;
 use JMS\Serializer\SerializationContext;
 use JMS\Serializer\SerializerInterface;
 
@@ -64,20 +66,51 @@ final class UserController extends AbstractController
     public function getUserDetails(User $user, TokenStorageInterface $tokenStorage, SerializerInterface $serializer, CustomerRepository $customerRepository, UserRepository $userRepository)
     {
         $token = $tokenStorage->getToken();
-
         // Vérifiez si le token et l'utilisateur existent
         if ($token && ($user_admin = $token->getUser()) && is_object($user_admin)) {
             $is_authorized = $customerRepository->isAccepted($user_admin->getId(), $user->getId());
-
+            // Si l'admin qui fait la requêtes est autorisée à voir l'user 
             if (!is_null($is_authorized)) {
-                $user_new = $userRepository->find($user);
+                // Return JsonResponse
                 $context = SerializationContext::create()->setGroups(['user_read']);
-                $jsonList = $serializer->serialize($user_new, 'json', $context);
-                return new JsonResponse($jsonList, Response::HTTP_OK, [], true);
+                $jsonUser = $serializer->serialize($user, 'json', $context);
+                return new JsonResponse($jsonUser, Response::HTTP_OK, [], true);
             }else{
                 return new JsonResponse( "Vous n'êtes pas autorisé à voir cette utilisateur" ,Response::HTTP_BAD_REQUEST, [], true);
-
             }
         }
+    }
+
+    #[Route('/api/user', name: 'add_user', methods: ["POST"])]        
+    /**
+     * setUser
+     *
+     * @param  Request $request
+     * @param  TokenStorageInterface $tokenStorage
+     * @param  SerializerInterface $serializer
+     * @param  EntityManagerInterface $em
+     * @param  UrlGeneratorInterface $urlGenerator
+     * @return JsonResponse
+     */
+    public function setUser(Request $request,TokenStorageInterface $tokenStorage, SerializerInterface $serializer, EntityManagerInterface $em, UrlGeneratorInterface $urlGenerator): JsonResponse{
+        // Récupération de l'utilisateur dans la requete
+        $user = $serializer->deserialize($request->getContent(), User::class, 'json');
+        $em->persist($user);
+        // Initialisation de la ligne dans customer
+        $token = $tokenStorage->getToken();
+        $customer = new Customer;
+        $customer->setCustomer($token->getUser());
+        $customer->setUser($user);
+        
+        $em->persist($customer);
+        // Enregistré en BDD
+        $em->flush();
+
+        // Retour Json
+        $context = SerializationContext::create()->setGroups(['user_read']);
+        $jsonUser = $serializer->serialize($user, 'json', $context);
+        $location = $urlGenerator->generate('user_details', ['id' => $user->getId()], UrlGeneratorInterface::ABSOLUTE_URL);
+
+        return new JsonResponse($jsonUser, Response::HTTP_CREATED, ["Location" => $location], true);
     }
 }
