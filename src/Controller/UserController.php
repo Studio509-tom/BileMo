@@ -20,7 +20,12 @@ use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Doctrine\ORM\EntityManagerInterface;
 use JMS\Serializer\SerializationContext;
 use JMS\Serializer\SerializerInterface;
-
+use Nelmio\ApiDocBundle\Annotation\Model;
+use Nelmio\ApiDocBundle\Annotation\Security;
+use OpenApi\Annotations as OA;
+/**
+ * * @OA\Tag(name="Utilisateurs")
+ */
 final class UserController extends AbstractController
 {
     #[Route('/api/users', name: 'users', methods: ["GET"])]    
@@ -115,8 +120,17 @@ final class UserController extends AbstractController
     }
 
     #[Route('/api/user/{id}', name: 'delete_user', methods: ["DELETE"])]        
-  
+      
+    /**
+     * deleteUser
+     *
+     * @param  User $user
+     * @param  CustomerRepository $customerRepository
+     * @param  EntityManagerInterface $em
+     * @return JsonResponse
+     */
     public function deleteUser(User $user,CustomerRepository $customerRepository, EntityManagerInterface $em): JsonResponse{
+        // delete relation with customer   
         
         $customerRepository->deleteCustomerWithUserId($user->getId());
         $em->remove($user);
