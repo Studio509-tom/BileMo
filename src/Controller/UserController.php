@@ -23,43 +23,49 @@ use JMS\Serializer\SerializerInterface;
 use Nelmio\ApiDocBundle\Annotation\Model;
 use Nelmio\ApiDocBundle\Annotation\Security;
 use OpenApi\Annotations as OA;
-/**
- * * @OA\Tag(name="Utilisateurs")
- */
+use Symfony\Component\Validator\Validator\ValidatorInterface;
+use Symfony\Contracts\Cache\ItemInterface;
+use Symfony\Contracts\Cache\TagAwareCacheInterface;
+
 final class UserController extends AbstractController
 {
-    #[Route('/api/users', name: 'users', methods: ["GET"])]    
+    #[Route('/api/users', name: 'users', methods: ["GET"])]
     /**
-     * getUserFromToken
-     *
+     * Récupéré les utilisateurs
      * @param  TokenStorageInterface $tokenStorage
      * @param  CustomerRepository $customerRepository
      * @param  SerializerInterface $serializer
      * @param  UserRepository $userRepository
      * @return JsonResponse
      */
-    public function getUserFromToken(TokenStorageInterface $tokenStorage, CustomerRepository $customerRepository, SerializerInterface $serializer, UserRepository $userRepository)
+    public function getUsersFromToken(TokenStorageInterface $tokenStorage, TagAwareCacheInterface $cache, CustomerRepository $customerRepository, SerializerInterface $serializer, UserRepository $userRepository)
     {
         $token = $tokenStorage->getToken();
 
         // Vérifiez si le token et l'utilisateur existent
         if ($token && ($user = $token->getUser()) && is_object($user)) {
-            // Récupération des ids users correspondant à l'admin
-            $usersOfCustomer = $customerRepository->findUsersByCustomerId($user);
-            $users = [];
-            // Formattage des users
-            foreach ($usersOfCustomer as $value) {
-                $users[] = $userRepository->findBy(["id" => $value]);
-            }
+            $idCache = "user_read";
+
+            $jsonList = $cache->get($idCache, function (ItemInterface $item) use ($userRepository, $user, $customerRepository, $serializer) {
+                $item->tag("users_readCache");
+                // Récupération des ids users correspondant à l'admin
+                $usersOfCustomer = $customerRepository->findUsersByCustomerId($user);
+                $users = [];
+                // Formattage des users
+                foreach ($usersOfCustomer as $value) {
+                    $users[] = $userRepository->findBy(["id" => $value]);
+                }
+
+                $context = SerializationContext::create()->setGroups(['user_read']);
+                return $serializer->serialize($users, 'json', $context);
+            });
             // Retour Json
-            $context = SerializationContext::create()->setGroups(['user_read']);
-            $jsonList = $serializer->serialize($users, 'json', $context);
             return new JsonResponse($jsonList, Response::HTTP_OK, [], true);
         }
     }
-    #[Route('/api/user/{id}', name: 'user_details', methods: ["GET"])]    
+    #[Route('/api/user/{id}', name: 'user_details', methods: ["GET"])]
     /**
-     * getUserDetails
+     * Récupéré un utilisateur
      *
      * @param  User $user
      * @param  TokenStorageInterface $tokenStorage
@@ -68,7 +74,7 @@ final class UserController extends AbstractController
      * @param  UserRepository $userRepository
      * @return JsonResponse
      */
-    public function getUserDetails(User $user, TokenStorageInterface $tokenStorage, SerializerInterface $serializer, CustomerRepository $customerRepository, UserRepository $userRepository)
+    public function getUserDetails(User $user, TokenStorageInterface $tokenStorage, TagAwareCacheInterface $cache, SerializerInterface $serializer, CustomerRepository $customerRepository, UserRepository $userRepository)
     {
         $token = $tokenStorage->getToken();
         // Vérifiez si le token et l'utilisateur existent
@@ -77,40 +83,52 @@ final class UserController extends AbstractController
             // Si l'admin qui fait la requêtes est autorisée à voir l'user 
             if (!is_null($is_authorized)) {
                 // Return JsonResponse
-                $context = SerializationContext::create()->setGroups(['user_read']);
-                $jsonUser = $serializer->serialize($user, 'json', $context);
+                $idCache = "user_read-" . $user->getId();
+                $jsonUser = $cache->get($idCache, function (ItemInterface $item) use ($userRepository, $user, $serializer) {
+                    $item->tag("user_readCache");
+                    $context = SerializationContext::create()->setGroups(['user_read']);
+                    return $serializer->serialize($user, 'json', $context);
+                });
                 return new JsonResponse($jsonUser, Response::HTTP_OK, [], true);
-            }else{
-                return new JsonResponse( "Vous n'êtes pas autorisé à voir cette utilisateur" ,Response::HTTP_BAD_REQUEST, [], true);
+            } else {
+                return new JsonResponse("Vous n'êtes pas autorisé à voir cette utilisateur", Response::HTTP_BAD_REQUEST, [], true);
             }
         }
     }
 
-    #[Route('/api/user', name: 'add_user', methods: ["POST"])]        
+    #[Route('/api/user', name: 'add_user', methods: ["POST"])]
     /**
-     * setUser
+     * Ajouter un utilisateur
      *
      * @param  Request $request
      * @param  TokenStorageInterface $tokenStorage
+     * @param  TagAwareCacheInterface $cachePool
      * @param  SerializerInterface $serializer
      * @param  EntityManagerInterface $em
      * @param  UrlGeneratorInterface $urlGenerator
      * @return JsonResponse
      */
-    public function setUser(Request $request,TokenStorageInterface $tokenStorage, SerializerInterface $serializer, EntityManagerInterface $em, UrlGeneratorInterface $urlGenerator): JsonResponse{
+    public function addUser(Request $request, ValidatorInterface $validator, TokenStorageInterface $tokenStorage,TagAwareCacheInterface $cachePool, SerializerInterface $serializer, EntityManagerInterface $em, UrlGeneratorInterface $urlGenerator): JsonResponse
+    {
         // Récupération de l'utilisateur dans la requete
         $user = $serializer->deserialize($request->getContent(), User::class, 'json');
+        $error = $validator->validate($user);
+        if ($error->count() > 0) {
+            return new JsonResponse($serializer->serialize($error, 'json'), JsonResponse::HTTP_BAD_REQUEST, [], true);
+        }
         $em->persist($user);
         // Initialisation de la ligne dans customer
         $token = $tokenStorage->getToken();
         $customer = new Customer;
         $customer->setCustomer($token->getUser());
         $customer->setUser($user);
-        
+
         $em->persist($customer);
         // Enregistré en BDD
         $em->flush();
 
+        $cachePool->invalidateTags(["user_readCache-" .$user->getId()]);
+        $cachePool->invalidateTags(["users_readCache"]);
         // Retour Json
         $context = SerializationContext::create()->setGroups(['user_read']);
         $jsonUser = $serializer->serialize($user, 'json', $context);
@@ -119,20 +137,22 @@ final class UserController extends AbstractController
         return new JsonResponse($jsonUser, Response::HTTP_CREATED, ["Location" => $location], true);
     }
 
-    #[Route('/api/user/{id}', name: 'delete_user', methods: ["DELETE"])]        
-      
+    #[Route('/api/user/{id}', name: 'delete_user', methods: ["DELETE"])]
     /**
-     * deleteUser
+     * Supprimer un utilisateur
      *
      * @param  User $user
      * @param  CustomerRepository $customerRepository
      * @param  EntityManagerInterface $em
+     * @param  TagAwareCacheInterface $cachePool
      * @return JsonResponse
      */
-    public function deleteUser(User $user,CustomerRepository $customerRepository, EntityManagerInterface $em): JsonResponse{
+    public function deleteUser(User $user, CustomerRepository $customerRepository, EntityManagerInterface $em,TagAwareCacheInterface $cachePool): JsonResponse
+    {
         // delete relation with customer   
-        
         $customerRepository->deleteCustomerWithUserId($user->getId());
+        $cachePool->invalidateTags(["user_readCache-" .$user->getId()]);
+        $cachePool->invalidateTags(["users_readCache"]);
         $em->remove($user);
         $em->flush();
 

@@ -21,25 +21,7 @@ final class ProductController extends AbstractController
 {
     #[Route('/api/products', name: 'products',methods:['GET'])]  
     /**
-     *  @OA\Get(
-     *     path="/api/products",
-     *     summary="Get list of products",
-     *     @OA\Response(
-     *         response=200,
-     *         description="List of products",
-     *         @OA\JsonContent(
-     *             type="array",
-     *             @OA\Items(
-     *                 type="object",
-     *                 @OA\Property(property="id", type="integer"),
-     *                 @OA\Property(property="name", type="string"),
-     *                 @OA\Property(property="price", type="number")
-     *             )
-     *         )
-     *     )
-     * )
-     * @OA\Tag(name="Products")
-     * getProducts
+     * Récupérer tout les produits
      * @param  ProductRepository $productRepository
      * @param  SerializerInterface $serializer
      * @return JsonResponse
@@ -56,9 +38,7 @@ final class ProductController extends AbstractController
 
     #[Route('/api/product/{id}', name: 'product_details',methods:['GET'])]    
     /**
-     * getProduct
-     * @OA\Tag(name="rewards")
-    *  @Security(name="Bearer")
+     * Récupérer le details d'un produit
      * @param  Product $product
      * @param  SerializerInterface $serializer
      * @return JsonResponse
