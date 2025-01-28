@@ -123,12 +123,12 @@ final class UserController extends AbstractController
         $customer->setCustomer($token->getUser());
         $customer->setUser($user);
 
+        $cachePool->invalidateTags(["user_readCache-" .$user->getId()]);
+        $cachePool->invalidateTags(["users_readCache"]);
         $em->persist($customer);
         // Enregistré en BDD
         $em->flush();
 
-        $cachePool->invalidateTags(["user_readCache-" .$user->getId()]);
-        $cachePool->invalidateTags(["users_readCache"]);
         // Retour Json
         $context = SerializationContext::create()->setGroups(['user_read']);
         $jsonUser = $serializer->serialize($user, 'json', $context);
