@@ -15,12 +15,18 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[ORM\UniqueConstraint(name: 'UNIQ_IDENTIFIER_EMAIL', fields: ['email'])]
 
 class User implements UserInterface, PasswordAuthenticatedUserInterface
+
+
 {
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
     #[Groups(["user_read"])]
     private ?int $id = null;
+    
+    #[ORM\ManyToOne(targetEntity: User::class)]
+    #[ORM\JoinColumn(name: "referent_id", referencedColumnName: "id", nullable: true)]
+    private ?User $referent = null;
 
     #[ORM\Column(length: 180)]
     #[Groups(["user_read"])]
@@ -30,7 +36,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     /**
      * @var list<string> The user roles
      */
-    #[ORM\Column]
+    #[ORM\Column(type: "json")]
     #[Groups(["user_read"])]
     private array $roles = ["ROLE_USER"];
 
@@ -44,12 +50,12 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     /**
      * @var Collection<int, Customer>
      */
-    #[ORM\OneToMany(targetEntity: Customer::class, mappedBy: 'user')]
+    #[ORM\OneToMany(targetEntity: Customer::class, mappedBy: 'customer')]
     private Collection $customers;
 
-    #[ORM\Column(length: 255)]
+    #[ORM\Column(length: 1024)]
     #[Groups(["user_read"])]
-    #[Assert\Length(min: 3, max: 255, minMessage: "Le token doit faire au moins {{ limit }} caractères", maxMessage: "Le titre ne peut pas faire plus de {{ limit }} caractères")]
+    #[Assert\Length(min: 3, max: 1024, minMessage: "Le token doit faire au moins {{ limit }} caractères", maxMessage: "Le titre ne peut pas faire plus de {{ limit }} caractères")]
     private ?string $token = null;
 
     public function __construct()
@@ -135,39 +141,50 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function getUsername(){
         return $this->getUserIdentifier();
     }
-    public function getReferenceCustomer(): ?Customer
+
+     public function getReferent(): ?User
     {
-        return $this->referenceCustomer;
+        return $this->referent;
     }
 
-    public function setReferenceCustomer(?Customer $referenceCustomer): static
+    public function setReferent(?User $referent): static
     {
-        $this->referenceCustomer = $referenceCustomer;
-
+        $this->referent = $referent;
         return $this;
     }
+    // public function getReferenceCustomer(): ?Customer
+    // {
+    //     return $this->referenceCustomer;
+    // }
 
-    public function getCustomer(): ?Customer
-    {
-        return $this->customer;
-    }
+    // public function setReferenceCustomer(?Customer $referenceCustomer): static
+    // {
+    //     $this->referenceCustomer = $referenceCustomer;
 
-    public function setCustomer(?Customer $customer): static
-    {
-        // unset the owning side of the relation if necessary
-        if ($customer === null && $this->customer !== null) {
-            $this->customer->setCustomer(null);
-        }
+    //     return $this;
+    // }
 
-        // set the owning side of the relation if necessary
-        if ($customer !== null && $customer->getCustomer() !== $this) {
-            $customer->setCustomer($this);
-        }
+    // public function getCustomer(): ?Customer
+    // {
+    //     return $this->customer;
+    // }
 
-        $this->customer = $customer;
+    // public function setCustomer(?Customer $customer): static
+    // {
+    //     // unset the owning side of the relation if necessary
+    //     if ($customer === null && $this->customer !== null) {
+    //         $this->customer->setCustomer(null);
+    //     }
 
-        return $this;
-    }
+    //     // set the owning side of the relation if necessary
+    //     if ($customer !== null && $customer->getCustomer() !== $this) {
+    //         $customer->setCustomer($this);
+    //     }
+
+    //     $this->customer = $customer;
+
+    //     return $this;
+    // }
 
     /**
      * @return Collection<int, Customer>

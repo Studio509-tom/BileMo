@@ -4,15 +4,33 @@ nelmio_api_doc:
     
     documentation:
         info:
-            title: BileMo
-            description: 
+            title: BileMo API - Documentation Client
+            description: >
+                API de gestion de produits et d’utilisateurs pour les clients BileMo.
+                Authentification par JWT.
             version: 2.0.0
         paths:
+            /api/user:
+                post:
+                    operationId: postUserItem
+                    summary: Crée un nouvel utilisateur rattaché à l'admin connecté.
+                    requestBody:
+                        description: Données du nouvel utilisateur
+                        required: true
+                        content:
+                            application/json:
+                                schema:
+                                    $ref: '#/components/schemas/User'
+                    responses:
+                        '201':
+                            description: Utilisateur créé
+                            content:
+                                application/json:
+                                    schema:
+                                        $ref: '#/components/schemas/User'
             /api/login_check:
                 post:
                     operationId: postCredentialsItem
-                    tags:
-                        - Token
                     summary: Permet d'obtenir le token JWT pour se logger.
                     requestBody:
                         description: Crée un nouveau token JWT
@@ -29,6 +47,20 @@ nelmio_api_doc:
                                         $ref: '#/components/schemas/Token'
         components:
             schemas:
+                User:
+                    type: object
+                    properties:
+                        email:
+                            type: string
+                            example: toto20@test.fr
+                        password:
+                            type: string
+                            example: password
+                        roles:
+                            type: array
+                            items:
+                                type: string
+                            example: ["ROLE_USER"]
                 Token:
                     type: object
                     properties:
@@ -53,5 +85,5 @@ nelmio_api_doc:
             - bearerAuth: []
     areas: # to filter documented areas
         path_patterns:
-            - ^/api(?!/doc$) # Accepts routes under /api except /api/doc
+            - ^/api(?!/doc$|/login_check$) # Accepts routes under /api except /api/doc et /api/login_check
    

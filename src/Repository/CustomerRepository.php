@@ -17,16 +17,11 @@ class CustomerRepository extends ServiceEntityRepository
     {
         parent::__construct($registry, Customer::class);
     }
-    public function findUsersByCustomerId($customerId): array
+    // Nouvelle méthode pour filtrer par référent
+    public function findUsersByReferent($referent): array
     {
-        return $this->createQueryBuilder('c')
-        ->select('u.id') // Récupérer les ID des utilisateurs
-        ->join('c.user', 'u') // Joindre la relation ManyToMany
-        ->where('c.customer = :customerId')
-        ->setParameter('customerId', $customerId->getId())
-        ->getQuery()
-        ->getSingleColumnResult();
-
+        return $this->getEntityManager()->getRepository(\App\Entity\User::class)
+            ->findBy(['referent' => $referent]);
     }
     
     /**

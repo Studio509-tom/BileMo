@@ -45,17 +45,16 @@ final class UserController extends AbstractController
         // Vérifiez si le token et l'utilisateur existent
         if ($token && ($user = $token->getUser()) && is_object($user)) {
             $idCache = "user_read";
+            if ($user instanceof \App\Entity\User) {
+                $idCache .= "_" . $user->getId();
+            } else if (method_exists($user, 'getUserIdentifier')) {
+                $idCache .= "_" . md5($user->getUserIdentifier());
+            }
 
-            $jsonList = $cache->get($idCache, function (ItemInterface $item) use ($userRepository, $user, $customerRepository, $serializer) {
+            $jsonList = $cache->get($idCache, function (ItemInterface $item) use ($customerRepository, $user, $serializer) {
                 $item->tag("users_readCache");
-                // Récupération des ids users correspondant à l'admin
-                $usersOfCustomer = $customerRepository->findUsersByCustomerId($user);
-                $users = [];
-                // Formattage des users
-                foreach ($usersOfCustomer as $value) {
-                    $users[] = $userRepository->findBy(["id" => $value]);
-                }
-
+                // Récupération des users rattachés à l'admin via le champ referent
+                $users = $customerRepository->findUsersByReferent($user);
                 $context = SerializationContext::create()->setGroups(['user_read']);
                 return $serializer->serialize($users, 'json', $context);
             });
@@ -78,12 +77,12 @@ final class UserController extends AbstractController
     {
         $token = $tokenStorage->getToken();
         // Vérifiez si le token et l'utilisateur existent
-        if ($token && ($user_admin = $token->getUser()) && is_object($user_admin)) {
-            $is_authorized = $customerRepository->isAccepted($user_admin->getId(), $user->getId());
-            // Si l'admin qui fait la requêtes est autorisée à voir l'user 
+        if ($token && ($user_admin = $token->getUser()) && method_exists($user_admin, 'getId') && is_object($user_admin)) {
+            $adminId = $user_admin->getId();
+            $userId = $user->getId();
+            $is_authorized = $customerRepository->isAccepted($adminId, $userId);
             if (!is_null($is_authorized)) {
-                // Return JsonResponse
-                $idCache = "user_read-" . $user->getId();
+                $idCache = "user_read-" . $userId;
                 $jsonUser = $cache->get($idCache, function (ItemInterface $item) use ($userRepository, $user, $serializer) {
                     $item->tag("user_readCache");
                     $context = SerializationContext::create()->setGroups(['user_read']);
@@ -94,6 +93,7 @@ final class UserController extends AbstractController
                 return new JsonResponse("Vous n'êtes pas autorisé à voir cette utilisateur", Response::HTTP_BAD_REQUEST, [], true);
             }
         }
+        return new JsonResponse("Token ou utilisateur non valide", Response::HTTP_UNAUTHORIZED);
     }
 
     #[Route('/api/user', name: 'add_user', methods: ["POST"])]
@@ -108,7 +108,7 @@ final class UserController extends AbstractController
      * @param  UrlGeneratorInterface $urlGenerator
      * @return JsonResponse
      */
-    public function addUser(Request $request, ValidatorInterface $validator, TokenStorageInterface $tokenStorage,TagAwareCacheInterface $cachePool, SerializerInterface $serializer, EntityManagerInterface $em, UrlGeneratorInterface $urlGenerator): JsonResponse
+    public function addUser(Request $request, ValidatorInterface $validator, TokenStorageInterface $tokenStorage,TagAwareCacheInterface $cachePool, SerializerInterface $serializer, EntityManagerInterface $em, UrlGeneratorInterface $urlGenerator, \Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface $jwtManager): JsonResponse
     {
         // Récupération de l'utilisateur dans la requete
         $user = $serializer->deserialize($request->getContent(), User::class, 'json');
@@ -116,11 +116,18 @@ final class UserController extends AbstractController
         if ($error->count() > 0) {
             return new JsonResponse($serializer->serialize($error, 'json'), JsonResponse::HTTP_BAD_REQUEST, [], true);
         }
+        // Génération du token JWT pour le nouvel utilisateur
+        $user->setToken($jwtManager->create($user));
+        // Définit le référent comme l'utilisateur actuellement connecté
+        $token = $tokenStorage->getToken();
+        $currentUser = $token ? $token->getUser() : null;
+        if ($currentUser instanceof \App\Entity\User) {
+            $user->setReferent($currentUser);
+        }
         $em->persist($user);
         // Initialisation de la ligne dans customer
-        $token = $tokenStorage->getToken();
         $customer = new Customer;
-        $customer->setCustomer($token->getUser());
+        $customer->setCustomer($currentUser);
         $customer->setUser($user);
 
         $cachePool->invalidateTags(["user_readCache-" .$user->getId()]);

@@ -15,10 +15,11 @@ class Customer
     #[ORM\Column]
     private ?int $id = null;
 
-    #[ORM\ManyToOne(inversedBy: 'customers')]
+    #[ORM\ManyToOne(targetEntity: User::class, inversedBy: 'customers')]
+    #[ORM\JoinColumn(name: "customer_id", referencedColumnName: "id", nullable: false)]
     private ?User $customer = null;
 
-    #[ORM\OneToOne(targetEntity: User::class, inversedBy: 'customer', cascade: ['persist', 'remove'])]
+    #[ORM\OneToOne(targetEntity: User::class)]
     #[ORM\JoinColumn(name:"user_id", referencedColumnName:"id", nullable:false)]
     private ?User $user = null;
     

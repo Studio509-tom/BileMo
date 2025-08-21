@@ -45,11 +45,12 @@ class AppFixtures extends Fixture
             $user->setPassword($this->userPasswordHasher->hashPassword($user, "password"));
             $user->setRoles(['ROLE_USER']);
             $user->setToken($this->token->create($user));
-            
+            $referent = $listAdmin[array_rand($listAdmin)];
+            $user->setReferent($referent);
             $manager->persist($user);
 
             $customer = new Customer;
-            $customer->setCustomer($listAdmin[array_rand($listAdmin)]);
+            $customer->setCustomer($referent);
             $customer->setUser($user);
             $manager->persist($customer);
         }
