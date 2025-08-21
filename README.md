@@ -76,5 +76,8 @@ BileMo est une API Symfony pour la gestion de produits et d’utilisateurs, séc
 - JWT (LexikJWTAuthenticationBundle)
 - NelmioApiDocBundle
 
+<<<<<<< HEAD
 ## Licence
 MIT
+=======
+>>>>>>> 1cd7d406d475db7b3faca04f5ceee3eb553d2ee1
